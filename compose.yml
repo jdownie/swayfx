@@ -10,4 +10,4 @@ services:
         SCENEFXLIBVERSION: 0.4
         OPT_SWAYFX: /opt
     volumes:
-      - ./opt:/opt
+      - ./opt:/opt:z

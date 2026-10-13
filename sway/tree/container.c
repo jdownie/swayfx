@@ -9,6 +9,7 @@
 #include <wlr/types/wlr_subcompositor.h>
 #include "sway/config.h"
 #include "sway/desktop/transaction.h"
+#include "sway/frame.h"
 #include "sway/input/input-manager.h"
 #include "sway/input/seat.h"
 #include "sway/ipc-server.h"
@@ -120,6 +121,9 @@ struct sway_container *container_create(struct sway_view *view) {
 	c->blur_enabled = config->blur_enabled;
 	c->shadow_enabled = config->shadow_enabled;
 	c->dim = config->default_dim_inactive;
+
+	c->frame_enabled = config->window_frame_enabled;
+	c->frame_outset = config->window_frame_outset;
 
 	c->animation_state.animation = init_animation(c);
 	c->animation_state.from_alpha = 0.0f;
@@ -579,6 +583,8 @@ void container_destroy(struct sway_container *con) {
 	list_free(con->current.children);
 
 	list_free_items_and_destroy(con->marks);
+
+	frame_destroy_nodes(con);
 
 	if (con->view && con->view->container == con) {
 		con->view->container = NULL;

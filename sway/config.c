@@ -183,6 +183,14 @@ void free_config(struct sway_config *config) {
 	free(config->font);
 	free(config->swaybg_command);
 	free(config->swaynag_command);
+	free(config->window_frame_image_top_left);
+	free(config->window_frame_image_top);
+	free(config->window_frame_image_top_right);
+	free(config->window_frame_image_left);
+	free(config->window_frame_image_right);
+	free(config->window_frame_image_bottom_left);
+	free(config->window_frame_image_bottom);
+	free(config->window_frame_image_bottom_right);
 	free((char *)config->current_config_path);
 	free((char *)config->current_config);
 	keysym_translation_state_destroy(config->keysym_translation_state);
@@ -378,6 +386,17 @@ static void config_defaults(struct sway_config *config) {
 
 	config->titlebar_separator = true;
 	config->scratchpad_minimize = false;
+
+	config->window_frame_enabled = false;
+	config->window_frame_outset = 0;
+	config->window_frame_image_top_left = NULL;
+	config->window_frame_image_top = NULL;
+	config->window_frame_image_top_right = NULL;
+	config->window_frame_image_left = NULL;
+	config->window_frame_image_right = NULL;
+	config->window_frame_image_bottom_left = NULL;
+	config->window_frame_image_bottom = NULL;
+	config->window_frame_image_bottom_right = NULL;
 
 	if (!(config->layer_criteria = create_list())) {
 		goto cleanup;

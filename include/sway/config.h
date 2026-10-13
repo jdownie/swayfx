@@ -514,6 +514,17 @@ struct sway_config {
 	bool titlebar_separator;
 	bool scratchpad_minimize;
 
+	bool window_frame_enabled;
+	int window_frame_outset;
+	char *window_frame_image_top_left;
+	char *window_frame_image_top;
+	char *window_frame_image_top_right;
+	char *window_frame_image_left;
+	char *window_frame_image_right;
+	char *window_frame_image_bottom_left;
+	char *window_frame_image_bottom;
+	char *window_frame_image_bottom_right;
+
 	list_t *layer_criteria;
 
 	char *swaynag_command;

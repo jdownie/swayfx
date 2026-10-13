@@ -24,6 +24,7 @@ sway_sources = files(
 	'desktop/transaction.c',
 	'desktop/xdg_shell.c',
 	'desktop/launcher.c',
+	'desktop/frame.c',
 
 	'input/input-manager.c',
 	'input/cursor.c',
@@ -146,6 +147,9 @@ sway_sources = files(
 	'commands/ultrawide.c',
 	'commands/unmark.c',
 	'commands/urgent.c',
+	'commands/window_frame.c',
+	'commands/window_frame_outset.c',
+	'commands/window_frame_image.c',
 	'commands/workspace.c',
 	'commands/workspace_layout.c',
 	'commands/ws_auto_back_and_forth.c',

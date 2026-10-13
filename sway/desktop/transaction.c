@@ -7,6 +7,7 @@
 #include "scenefx/types/fx/clipped_region.h"
 #include "sway/animation_manager.h"
 #include "sway/config.h"
+#include "sway/frame.h"
 #include "sway/scene_descriptor.h"
 #include "sway/desktop/idle_inhibit_v1.h"
 #include "sway/desktop/transaction.h"
@@ -536,28 +537,33 @@ static void _arrange_container(struct sway_container *con,
 	wlr_scene_node_set_enabled(&con->scene_tree->node, true);
 
 	bool has_corner_radius = container_has_corner_radius(con);
+	bool has_frame = container_has_frame(con);
+
+	if (has_frame) {
+		has_corner_radius = false;
+	}
 
 	if (container_has_shadow(con)) {
 		int corner_radius = has_corner_radius ? con->corner_radius + con->current.border_thickness : 0;
 		if (!con->view && title_bar) {
-			// Stacking/Tabbed containers don't have a border_thickness, so we
-			// use the config default
 			corner_radius = con->corner_radius + config->border_thickness;
 		}
 
-		wlr_scene_shadow_set_size(con->shadow,
-				width + config->shadow_blur_sigma * 2,
-				height + config->shadow_blur_sigma * 2);
+		int shadow_extra = has_frame ? con->frame_outset > 0 ? con->frame_outset : config->window_frame_outset : 0;
 
-		int shadow_x = config->shadow_offset_x - config->shadow_blur_sigma;
-		int shadow_y = config->shadow_offset_y - config->shadow_blur_sigma;
+		wlr_scene_shadow_set_size(con->shadow,
+				width + config->shadow_blur_sigma * 2 + shadow_extra * 2,
+				height + config->shadow_blur_sigma * 2 + shadow_extra * 2);
+
+		int shadow_x = config->shadow_offset_x - config->shadow_blur_sigma - shadow_extra;
+		int shadow_y = config->shadow_offset_y - config->shadow_blur_sigma - shadow_extra;
 		wlr_scene_node_set_position(&con->shadow->node, shadow_x, shadow_y);
 
 		wlr_scene_shadow_set_clipped_region(con->shadow, (struct clipped_region) {
 			.corners = corner_radii_all(corner_radius),
 			.area = {
-				.x = config->shadow_blur_sigma - config->shadow_offset_x,
-				.y = config->shadow_blur_sigma - config->shadow_offset_y,
+				.x = config->shadow_blur_sigma - config->shadow_offset_x + shadow_extra,
+				.y = config->shadow_blur_sigma - config->shadow_offset_y + shadow_extra,
 				.width = width,
 				.height = height,
 			}
@@ -612,6 +618,11 @@ static void _arrange_container(struct sway_container *con,
 			sway_assert(false, "unreachable");
 		}
 
+		if (has_frame) {
+			border_top = 0;
+			border_width = 0;
+		}
+
 		int border_bottom = con->current.border_bottom ? border_width : 0;
 		int border_left = con->current.border_left ? border_width : 0;
 		int border_right = con->current.border_right ? border_width : 0;
@@ -664,6 +675,10 @@ static void _arrange_container(struct sway_container *con,
 			0, border_top + vert_border_offset);
 		wlr_scene_node_set_position(&con->border.right->node,
 			width - border_right, border_top + vert_border_offset);
+
+		if (has_frame) {
+			frame_arrange(con, width, height);
+		}
 
 		int content_width = width - border_left - border_right;
 		int content_height = height - border_top - border_bottom;

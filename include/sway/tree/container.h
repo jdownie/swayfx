@@ -152,6 +152,19 @@ struct sway_container {
 	bool shadow_enabled;
 	float dim;
 
+	bool frame_enabled;
+	int frame_outset;
+	char *frame_image_paths[8];
+
+	struct wlr_scene_buffer *frame_top_left;
+	struct wlr_scene_buffer *frame_top_right;
+	struct wlr_scene_buffer *frame_bottom_left;
+	struct wlr_scene_buffer *frame_bottom_right;
+	list_t *frame_top_tiles;
+	list_t *frame_bottom_tiles;
+	list_t *frame_left_tiles;
+	list_t *frame_right_tiles;
+
 	struct {
 		struct animation animation;
 		float from_alpha;
