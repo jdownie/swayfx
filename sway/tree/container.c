@@ -75,6 +75,17 @@ struct sway_container *container_create(struct sway_view *view) {
 	c->shadow = alloc_scene_shadow(c->scene_tree, 0, 0,
 			0, config->shadow_blur_sigma, config->shadow_color, &failed);
 
+	c->frame_tree = alloc_scene_tree(c->scene_tree, &failed);
+
+	c->frame_top_left = wlr_scene_buffer_create(c->frame_tree, NULL);
+	c->frame_top_right = wlr_scene_buffer_create(c->frame_tree, NULL);
+	c->frame_bottom_left = wlr_scene_buffer_create(c->frame_tree, NULL);
+	c->frame_bottom_right = wlr_scene_buffer_create(c->frame_tree, NULL);
+	wlr_scene_node_set_enabled(&c->frame_top_left->node, false);
+	wlr_scene_node_set_enabled(&c->frame_top_right->node, false);
+	wlr_scene_node_set_enabled(&c->frame_bottom_left->node, false);
+	wlr_scene_node_set_enabled(&c->frame_bottom_right->node, false);
+
 	c->title_bar.tree = alloc_scene_tree(c->scene_tree, &failed);
 
 	c->border.tree = alloc_scene_tree(c->scene_tree, &failed);

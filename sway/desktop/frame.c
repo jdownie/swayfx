@@ -10,6 +10,7 @@
 #include <wlr/util/log.h>
 #include "sway/config.h"
 #include "sway/frame.h"
+#include "sway/tree/arrange.h"
 #include "sway/tree/container.h"
 #include "list.h"
 #include "log.h"
@@ -169,13 +170,6 @@ static void frame_ensure_tiles(list_t **tiles_ptr,
 	}
 }
 
-static void frame_ensure_corner(struct wlr_scene_buffer **node,
-		struct wlr_scene_tree *parent) {
-	if (!*node) {
-		*node = wlr_scene_buffer_create(parent, NULL);
-	}
-}
-
 bool container_has_frame(struct sway_container *con) {
 	return con->frame_enabled &&
 		(frame_get_image_path(con, FRAME_IMAGE_TOP_LEFT) ||
@@ -216,11 +210,6 @@ void frame_arrange(struct sway_container *con, int width, int height) {
 
 	int outset = con->frame_outset > 0 ? con->frame_outset : config->window_frame_outset;
 
-	frame_ensure_corner(&con->frame_top_left, con->scene_tree);
-	frame_ensure_corner(&con->frame_top_right, con->scene_tree);
-	frame_ensure_corner(&con->frame_bottom_left, con->scene_tree);
-	frame_ensure_corner(&con->frame_bottom_right, con->scene_tree);
-
 	struct frame_image *tl = frame_load_cached(con, FRAME_IMAGE_TOP_LEFT);
 	struct frame_image *tr = frame_load_cached(con, FRAME_IMAGE_TOP_RIGHT);
 	struct frame_image *bl = frame_load_cached(con, FRAME_IMAGE_BOTTOM_LEFT);
@@ -243,12 +232,33 @@ void frame_arrange(struct sway_container *con, int width, int height) {
 	int left_w = left ? left->width : 0;
 	int right_w = right ? right->width : 0;
 
+	int tl_cw = tl ? (outset < tl_w ? outset : tl_w) : 0;
+	int tl_ch = tl ? (outset < tl_h ? outset : tl_h) : 0;
+	int tr_cw = tr ? (outset < tr_w ? outset : tr_w) : 0;
+	int tr_ch = tr ? (outset < tr_h ? outset : tr_h) : 0;
+	int bl_cw = bl ? (outset < bl_w ? outset : bl_w) : 0;
+	int bl_ch = bl ? (outset < bl_h ? outset : bl_h) : 0;
+	int br_cw = br ? (outset < br_w ? outset : br_w) : 0;
+	int br_ch = br ? (outset < br_h ? outset : br_h) : 0;
+
+	int frame_left = -outset;
+	int frame_top = -outset;
+	int frame_right = width + outset;
+	int frame_bottom = height;
+
 	// Top-left corner
 	if (tl) {
+		struct wlr_fbox src = {
+			.x = 0,
+			.y = 0,
+			.width = tl_cw,
+			.height = tl_ch,
+		};
 		wlr_scene_buffer_set_buffer(con->frame_top_left, tl->buffer);
-		wlr_scene_buffer_set_dest_size(con->frame_top_left, tl_w, tl_h);
+		wlr_scene_buffer_set_source_box(con->frame_top_left, &src);
+		wlr_scene_buffer_set_dest_size(con->frame_top_left, tl_cw, tl_ch);
 		wlr_scene_node_set_position(&con->frame_top_left->node,
-				-outset, -outset);
+				frame_left, frame_top);
 		wlr_scene_node_set_enabled(&con->frame_top_left->node, true);
 	} else {
 		wlr_scene_node_set_enabled(&con->frame_top_left->node, false);
@@ -256,133 +266,169 @@ void frame_arrange(struct sway_container *con, int width, int height) {
 
 	// Top-right corner
 	if (tr) {
+		struct wlr_fbox src = {
+			.x = tr_w - tr_cw,
+			.y = 0,
+			.width = tr_cw,
+			.height = tr_ch,
+		};
 		wlr_scene_buffer_set_buffer(con->frame_top_right, tr->buffer);
-		wlr_scene_buffer_set_dest_size(con->frame_top_right, tr_w, tr_h);
+		wlr_scene_buffer_set_source_box(con->frame_top_right, &src);
+		wlr_scene_buffer_set_dest_size(con->frame_top_right, tr_cw, tr_ch);
 		wlr_scene_node_set_position(&con->frame_top_right->node,
-				width + outset - tr_w, -outset);
+				frame_right - tr_cw, frame_top);
 		wlr_scene_node_set_enabled(&con->frame_top_right->node, true);
 	} else {
 		wlr_scene_node_set_enabled(&con->frame_top_right->node, false);
 	}
 
-	// Bottom-left corner
+	// Bottom-left corner: top edge flush with window bottom
 	if (bl) {
+		struct wlr_fbox src = {
+			.x = 0,
+			.y = bl_h - bl_ch,
+			.width = bl_cw,
+			.height = bl_ch,
+		};
 		wlr_scene_buffer_set_buffer(con->frame_bottom_left, bl->buffer);
-		wlr_scene_buffer_set_dest_size(con->frame_bottom_left, bl_w, bl_h);
+		wlr_scene_buffer_set_source_box(con->frame_bottom_left, &src);
+		wlr_scene_buffer_set_dest_size(con->frame_bottom_left, bl_cw, bl_ch);
 		wlr_scene_node_set_position(&con->frame_bottom_left->node,
-				-outset, height + outset - bl_h);
+				frame_left, frame_bottom);
 		wlr_scene_node_set_enabled(&con->frame_bottom_left->node, true);
 	} else {
 		wlr_scene_node_set_enabled(&con->frame_bottom_left->node, false);
 	}
 
-	// Bottom-right corner
+	// Bottom-right corner: top edge flush with window bottom
 	if (br) {
+		struct wlr_fbox src = {
+			.x = br_w - br_cw,
+			.y = br_h - br_ch,
+			.width = br_cw,
+			.height = br_ch,
+		};
 		wlr_scene_buffer_set_buffer(con->frame_bottom_right, br->buffer);
-		wlr_scene_buffer_set_dest_size(con->frame_bottom_right, br_w, br_h);
+		wlr_scene_buffer_set_source_box(con->frame_bottom_right, &src);
+		wlr_scene_buffer_set_dest_size(con->frame_bottom_right, br_cw, br_ch);
 		wlr_scene_node_set_position(&con->frame_bottom_right->node,
-				width + outset - br_w, height + outset - br_h);
+				frame_right - br_cw, frame_bottom);
 		wlr_scene_node_set_enabled(&con->frame_bottom_right->node, true);
 	} else {
 		wlr_scene_node_set_enabled(&con->frame_bottom_right->node, false);
 	}
 
-	// Top edge (tiled horizontally)
-	int top_span = width + 2 * outset - tl_w - tr_w;
-	if (top && top_span > 0 && top->width > 0 && top->height > 0) {
-		int tile_count = (top_span + top->width - 1) / top->width;
-		frame_ensure_tiles(&con->frame_top_tiles, con->scene_tree, tile_count);
-		int x = -outset + tl_w;
-		for (int i = 0; i < tile_count; i++) {
-			struct wlr_scene_buffer *sb = con->frame_top_tiles->items[i];
-			int tile_w = top->width;
-			if (i == tile_count - 1) {
-				tile_w = top_span - i * top->width;
-				if (tile_w <= 0) tile_w = 0;
+	// Top edge (tiled horizontally, between top corners)
+	{
+		int x_start = frame_left + tl_cw;
+		int x_end = frame_right - tr_cw;
+		int top_span = x_end - x_start;
+		if (top && top_span > 0 && top->width > 0 && top->height > 0) {
+			int tile_count = (top_span + top->width - 1) / top->width;
+			frame_ensure_tiles(&con->frame_top_tiles, con->frame_tree, tile_count);
+			int x = x_start;
+			for (int i = 0; i < tile_count; i++) {
+				struct wlr_scene_buffer *sb = con->frame_top_tiles->items[i];
+				int tile_w = top->width;
+				if (i == tile_count - 1) {
+					tile_w = top_span - i * top->width;
+					if (tile_w <= 0) tile_w = 0;
+				}
+				wlr_scene_buffer_set_buffer(sb, top->buffer);
+				wlr_scene_buffer_set_dest_size(sb, tile_w, top_h);
+				wlr_scene_node_set_position(&sb->node, x, frame_top);
+				wlr_scene_node_set_enabled(&sb->node, tile_w > 0);
+				x += top->width;
 			}
-			wlr_scene_buffer_set_buffer(sb, top->buffer);
-			wlr_scene_buffer_set_dest_size(sb, tile_w, top_h);
-			wlr_scene_node_set_position(&sb->node, x, -outset);
-			wlr_scene_node_set_enabled(&sb->node, tile_w > 0);
-			x += top->width;
+		} else {
+			frame_clear_tiles(con->frame_top_tiles);
+			con->frame_top_tiles = NULL;
 		}
-	} else {
-		frame_clear_tiles(con->frame_top_tiles);
-		con->frame_top_tiles = NULL;
 	}
 
-	// Bottom edge (tiled horizontally)
-	int bottom_span = width + 2 * outset - bl_w - br_w;
-	if (bottom && bottom_span > 0 && bottom->width > 0 && bottom->height > 0) {
-		int tile_count = (bottom_span + bottom->width - 1) / bottom->width;
-		frame_ensure_tiles(&con->frame_bottom_tiles, con->scene_tree, tile_count);
-		int x = -outset + bl_w;
-		for (int i = 0; i < tile_count; i++) {
-			struct wlr_scene_buffer *sb = con->frame_bottom_tiles->items[i];
-			int tile_w = bottom->width;
-			if (i == tile_count - 1) {
-				tile_w = bottom_span - i * bottom->width;
-				if (tile_w <= 0) tile_w = 0;
+	// Bottom edge (tiled horizontally, between bottom corners)
+	{
+		int x_start = frame_left + bl_cw;
+		int x_end = frame_right - br_cw;
+		int bottom_span = x_end - x_start;
+		if (bottom && bottom_span > 0 && bottom->width > 0 && bottom->height > 0) {
+			int tile_count = (bottom_span + bottom->width - 1) / bottom->width;
+			frame_ensure_tiles(&con->frame_bottom_tiles, con->frame_tree, tile_count);
+			int x = x_start;
+			for (int i = 0; i < tile_count; i++) {
+				struct wlr_scene_buffer *sb = con->frame_bottom_tiles->items[i];
+				int tile_w = bottom->width;
+				if (i == tile_count - 1) {
+					tile_w = bottom_span - i * bottom->width;
+					if (tile_w <= 0) tile_w = 0;
+				}
+				wlr_scene_buffer_set_buffer(sb, bottom->buffer);
+				wlr_scene_buffer_set_dest_size(sb, tile_w, bottom_h);
+				wlr_scene_node_set_position(&sb->node, x, frame_bottom);
+				wlr_scene_node_set_enabled(&sb->node, tile_w > 0);
+				x += bottom->width;
 			}
-			wlr_scene_buffer_set_buffer(sb, bottom->buffer);
-			wlr_scene_buffer_set_dest_size(sb, tile_w, bottom_h);
-			wlr_scene_node_set_position(&sb->node, x,
-					height + outset - bottom_h);
-			wlr_scene_node_set_enabled(&sb->node, tile_w > 0);
-			x += bottom->width;
+		} else {
+			frame_clear_tiles(con->frame_bottom_tiles);
+			con->frame_bottom_tiles = NULL;
 		}
-	} else {
-		frame_clear_tiles(con->frame_bottom_tiles);
-		con->frame_bottom_tiles = NULL;
 	}
 
-	// Left edge (tiled vertically)
-	int left_span = height + 2 * outset - tl_h - bl_h;
-	if (left && left_span > 0 && left->width > 0 && left->height > 0) {
-		int tile_count = (left_span + left->height - 1) / left->height;
-		frame_ensure_tiles(&con->frame_left_tiles, con->scene_tree, tile_count);
-		int y = -outset + tl_h;
-		for (int i = 0; i < tile_count; i++) {
-			struct wlr_scene_buffer *sb = con->frame_left_tiles->items[i];
-			int tile_h = left->height;
-			if (i == tile_count - 1) {
-				tile_h = left_span - i * left->height;
-				if (tile_h <= 0) tile_h = 0;
+	// Left edge (tiled vertically, between left corners)
+	{
+		int y_start = frame_top + tl_ch;
+		int y_end = frame_bottom;
+		int left_span = y_end - y_start;
+		if (left && left_span > 0 && left->width > 0 && left->height > 0) {
+			int tile_count = (left_span + left->height - 1) / left->height;
+			frame_ensure_tiles(&con->frame_left_tiles, con->frame_tree, tile_count);
+			int y = y_start;
+			for (int i = 0; i < tile_count; i++) {
+				struct wlr_scene_buffer *sb = con->frame_left_tiles->items[i];
+				int tile_h = left->height;
+				if (i == tile_count - 1) {
+					tile_h = left_span - i * left->height;
+					if (tile_h <= 0) tile_h = 0;
+				}
+				wlr_scene_buffer_set_buffer(sb, left->buffer);
+				wlr_scene_buffer_set_dest_size(sb, left_w, tile_h);
+				wlr_scene_node_set_position(&sb->node, frame_left, y);
+				wlr_scene_node_set_enabled(&sb->node, tile_h > 0);
+				y += left->height;
 			}
-			wlr_scene_buffer_set_buffer(sb, left->buffer);
-			wlr_scene_buffer_set_dest_size(sb, left_w, tile_h);
-			wlr_scene_node_set_position(&sb->node, -outset, y);
-			wlr_scene_node_set_enabled(&sb->node, tile_h > 0);
-			y += left->height;
+		} else {
+			frame_clear_tiles(con->frame_left_tiles);
+			con->frame_left_tiles = NULL;
 		}
-	} else {
-		frame_clear_tiles(con->frame_left_tiles);
-		con->frame_left_tiles = NULL;
 	}
 
-	// Right edge (tiled vertically)
-	int right_span = height + 2 * outset - tr_h - br_h;
-	if (right && right_span > 0 && right->width > 0 && right->height > 0) {
-		int tile_count = (right_span + right->height - 1) / right->height;
-		frame_ensure_tiles(&con->frame_right_tiles, con->scene_tree, tile_count);
-		int y = -outset + tr_h;
-		for (int i = 0; i < tile_count; i++) {
-			struct wlr_scene_buffer *sb = con->frame_right_tiles->items[i];
-			int tile_h = right->height;
-			if (i == tile_count - 1) {
-				tile_h = right_span - i * right->height;
-				if (tile_h <= 0) tile_h = 0;
+	// Right edge (tiled vertically, between right corners)
+	{
+		int y_start = frame_top + tr_ch;
+		int y_end = frame_bottom;
+		int right_span = y_end - y_start;
+		if (right && right_span > 0 && right->width > 0 && right->height > 0) {
+			int tile_count = (right_span + right->height - 1) / right->height;
+			frame_ensure_tiles(&con->frame_right_tiles, con->frame_tree, tile_count);
+			int y = y_start;
+			for (int i = 0; i < tile_count; i++) {
+				struct wlr_scene_buffer *sb = con->frame_right_tiles->items[i];
+				int tile_h = right->height;
+				if (i == tile_count - 1) {
+					tile_h = right_span - i * right->height;
+					if (tile_h <= 0) tile_h = 0;
+				}
+				wlr_scene_buffer_set_buffer(sb, right->buffer);
+				wlr_scene_buffer_set_dest_size(sb, right_w, tile_h);
+				wlr_scene_node_set_position(&sb->node,
+						frame_right - right_w, y);
+				wlr_scene_node_set_enabled(&sb->node, tile_h > 0);
+				y += right->height;
 			}
-			wlr_scene_buffer_set_buffer(sb, right->buffer);
-			wlr_scene_buffer_set_dest_size(sb, right_w, tile_h);
-			wlr_scene_node_set_position(&sb->node,
-					width + outset - right_w, y);
-			wlr_scene_node_set_enabled(&sb->node, tile_h > 0);
-			y += right->height;
+		} else {
+			frame_clear_tiles(con->frame_right_tiles);
+			con->frame_right_tiles = NULL;
 		}
-	} else {
-		frame_clear_tiles(con->frame_right_tiles);
-		con->frame_right_tiles = NULL;
 	}
 
 	frame_image_unload(tl);
@@ -396,22 +442,11 @@ void frame_arrange(struct sway_container *con, int width, int height) {
 }
 
 void frame_destroy_nodes(struct sway_container *con) {
-	if (con->frame_top_left) {
-		wlr_scene_node_destroy(&con->frame_top_left->node);
-		con->frame_top_left = NULL;
-	}
-	if (con->frame_top_right) {
-		wlr_scene_node_destroy(&con->frame_top_right->node);
-		con->frame_top_right = NULL;
-	}
-	if (con->frame_bottom_left) {
-		wlr_scene_node_destroy(&con->frame_bottom_left->node);
-		con->frame_bottom_left = NULL;
-	}
-	if (con->frame_bottom_right) {
-		wlr_scene_node_destroy(&con->frame_bottom_right->node);
-		con->frame_bottom_right = NULL;
-	}
+	con->frame_top_left = NULL;
+	con->frame_top_right = NULL;
+	con->frame_bottom_left = NULL;
+	con->frame_bottom_right = NULL;
+
 	frame_clear_tiles(con->frame_top_tiles);
 	con->frame_top_tiles = NULL;
 	frame_clear_tiles(con->frame_bottom_tiles);
@@ -428,9 +463,5 @@ void frame_destroy_nodes(struct sway_container *con) {
 }
 
 void frame_reload_images(struct sway_container *con) {
-	if (!con->view) {
-		return;
-	}
-	frame_arrange(con, con->current.content_width + con->current.border_thickness * 2,
-			con->current.content_height + con->current.border_thickness);
+	arrange_container(con);
 }

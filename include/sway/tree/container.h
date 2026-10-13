@@ -156,6 +156,7 @@ struct sway_container {
 	int frame_outset;
 	char *frame_image_paths[8];
 
+	struct wlr_scene_tree *frame_tree;
 	struct wlr_scene_buffer *frame_top_left;
 	struct wlr_scene_buffer *frame_top_right;
 	struct wlr_scene_buffer *frame_bottom_left;

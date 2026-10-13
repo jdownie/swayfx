@@ -121,7 +121,6 @@ static const struct cmd_handler handlers[] = {
 	{ "unbindswitch", cmd_unbindswitch },
 	{ "unbindsym", cmd_unbindsym },
 	{ "window_frame", cmd_window_frame },
-	{ "window_frame_outset", cmd_window_frame_outset },
 	{ "window_frame_image_bottom", cmd_window_frame_image_bottom },
 	{ "window_frame_image_bottom_left", cmd_window_frame_image_bottom_left },
 	{ "window_frame_image_bottom_right", cmd_window_frame_image_bottom_right },
@@ -130,6 +129,7 @@ static const struct cmd_handler handlers[] = {
 	{ "window_frame_image_top", cmd_window_frame_image_top },
 	{ "window_frame_image_top_left", cmd_window_frame_image_top_left },
 	{ "window_frame_image_top_right", cmd_window_frame_image_top_right },
+	{ "window_frame_outset", cmd_window_frame_outset },
 	{ "workspace", cmd_workspace },
 	{ "workspace_auto_back_and_forth", cmd_ws_auto_back_and_forth },
 };
