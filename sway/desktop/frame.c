@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <cairo.h>
 #include <drm_fourcc.h>
+#include <math.h>
 #include <scenefx/types/wlr_scene.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +13,7 @@
 #include "sway/frame.h"
 #include "sway/tree/arrange.h"
 #include "sway/tree/container.h"
+#include "sway/tree/workspace.h"
 #include "list.h"
 #include "log.h"
 
@@ -241,10 +243,37 @@ void frame_arrange(struct sway_container *con, int width, int height) {
 	int br_cw = br ? (outset < br_w ? outset : br_w) : 0;
 	int br_ch = br ? (outset < br_h ? outset : br_h) : 0;
 
-	int frame_left = -outset;
-	int frame_top = -outset;
-	int frame_right = width + outset;
-	int frame_bottom = height;
+	// Each side either faces the workspace edge (extend by the outer gap)
+	// or a sibling window (extend by the full inner gap so neighbour frames
+	// overlap and cover the whole gap).
+	struct sway_workspace *ws = con->pending.workspace;
+	int gap_left = 0, gap_top = 0, gap_right = 0, gap_bottom = 0;
+	if (ws) {
+		double ws_left = ws->x;
+		double ws_top = ws->y;
+		double ws_right = ws->x + ws->width;
+		double ws_bottom = ws->y + ws->height;
+
+		bool edge_left = fabs(con->pending.x - ws_left) < 0.5;
+		bool edge_top = fabs(con->pending.y - ws_top) < 0.5;
+		bool edge_right = fabs(con->pending.x + con->pending.width - ws_right) < 0.5;
+		bool edge_bottom = fabs(con->pending.y + con->pending.height - ws_bottom) < 0.5;
+
+		gap_left = edge_left ? ws->gaps_outer.left : ws->gaps_inner;
+		gap_top = edge_top ? ws->gaps_outer.top : ws->gaps_inner;
+		gap_right = edge_right ? ws->gaps_outer.right : ws->gaps_inner;
+		gap_bottom = edge_bottom ? ws->gaps_outer.bottom : ws->gaps_inner;
+	} else {
+		gap_left = config->gaps_outer.left;
+		gap_top = config->gaps_outer.top;
+		gap_right = config->gaps_outer.right;
+		gap_bottom = config->gaps_outer.bottom;
+	}
+
+	int frame_left = -outset - gap_left;
+	int frame_top = -outset - gap_top;
+	int frame_right = width + outset + gap_right;
+	int frame_bottom = height + gap_bottom;
 
 	// Top-left corner
 	if (tl) {
